@@ -28,8 +28,8 @@ class Address {
 }
 
 def address = new Address(name: '')
-
 def swingBuilder = new SwingBuilder()
+
 swingBuilder.edt {
 	// edt method makes sure UI is build on Event Dispatch Thread.
 	lookAndFeel 'nimbus'  // Simple change in look and feel.
@@ -37,6 +37,17 @@ swingBuilder.edt {
 	show: true, locationRelativeTo: null,
 	defaultCloseOperation: EXIT_ON_CLOSE) {
 		Client client
+		def shipsToPlace = []
+		def showGame = {int width, int height ->
+			panelGrid.layout.rows = width
+			(1..width*height).each {
+				panelGrid.add(new JButton("" + it))
+			}
+			panelGrid.revalidate()
+			lobbyPanel.visible = false
+			panelGrid.visible = true
+		}
+		
 		def listener = {String mess ->
 			println address.name + " Incoming: " + mess
 			def arr = mess.split " "
@@ -80,8 +91,10 @@ swingBuilder.edt {
 			}
 			if (mess.startsWith("CONF")) {
 				// CONF 0 10 10 Air_Carrier 5 1 Battleship 4 1 Submarine 3 1 Submarine 3 1 Patrol 2 1
-				def shipArr = Arrays.copyOf(arr, 4, arr.length);
-				
+				for (int i = 4; i < arr.length; i += 3) {
+					shipsToPlace.add new Ship(name: arr[i], width: arr[i + 1], height: arr[i + 2])
+				}
+				showGame(10, 10)
 			}
 		}
 	
@@ -112,11 +125,6 @@ swingBuilder.edt {
 							client = new Client(name: address.name);
 							new Thread({ client.listen(listener) }).start();
 							
-/*							panelGrid.layout.rows = 10
-							(1..100).each{
-								panelGrid.add(new JButton("" + it))
-							}
-							panelGrid.revalidate()*/
 						}
 					}
 				}
