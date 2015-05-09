@@ -14,12 +14,12 @@ public class Client {
 		
 	}
 	
-	def listen() {
+	def listen(Closure<String> incoming) {
 		send "USER xxx $name password"
 		def input = socket.inputStream;
 		def reader = new BufferedReader(new InputStreamReader(input));
 		
-		reader.lines().forEach({mess -> System.out.println name + " Incoming: " + mess})
+		reader.lines().forEach(incoming); // {mess -> System.out.println name + " Incoming: " + mess})
 	}
 	
 	def send(message) {
@@ -36,17 +36,16 @@ def name = scan.nextLine()
 def client = new Client(name: name)
 
 def console(Client client, Scanner scan) {
-	
-	new Thread({ client.listen() }).start();
+	def listener = {mess -> System.out.println client.name + " Incoming: " + mess}
+	new Thread({ client.listen(listener)}).start();
 	
 	scan.withCloseable({ scanner ->
 		while (true) {
 			def input = scanner.nextLine();
 			client.send input
-//				println input
 		}
 	});
 	
 }
 
-new Thread({ console(client) }).start();
+new Thread({ console(client, scan) }).start();

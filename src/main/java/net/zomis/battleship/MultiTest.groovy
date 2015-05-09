@@ -5,13 +5,15 @@ def scanner = new Scanner(System.in);
 
 print "Enter name: "
 def nameA = scanner.nextLine();
+def listenerA = {mess -> System.out.println nameA + " Incoming: " + mess}
 def clientA = new Client(name: nameA)
-new Thread({ clientA.listen() }).start();
+new Thread({ clientA.listen(listenerA) }).start();
 
 print "Enter name: "
 def nameB = scanner.nextLine();
+def listenerB = {mess -> System.out.println nameB + " Incoming: " + mess}
 def clientB = new Client(name: nameB)
-new Thread({ clientB.listen() }).start();
+new Thread({ clientB.listen(listenerB) }).start();
 
 Thread.sleep 200
 clientA.send("INVT Battleship $nameB")
