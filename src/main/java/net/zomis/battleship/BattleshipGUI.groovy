@@ -6,12 +6,22 @@ import static javax.swing.JFrame.EXIT_ON_CLOSE
 
 import java.awt.*
 
+import javax.swing.ActionPropertyChangeListener;
 import javax.swing.BoxLayout;
+import javax.swing.DefaultListModel
 import javax.swing.JButton
+
+class Ship {
+	String name
+	int width
+	int height
+}
 
 @Bindable
 class Address {
 	String name, chatSend
+	int gameid
+	int playerIndex
 	String toString() {
 		"address[name=$name]"
 	}
@@ -29,8 +39,49 @@ swingBuilder.edt {
 		Client client
 		def listener = {String mess ->
 			println address.name + " Incoming: " + mess
+			def arr = mess.split " "
 			if (mess.startsWith("CHAT")) {
 				chat.append(mess + "\n")
+			}
+			if (mess.startsWith("INVT")) {
+				def inviteID = arr[1]
+				if (!arr[2].equals("Battleship")) {
+					println "Unsupported type: " + arr[2]
+					client.send "INVN $inviteID"
+					return;
+				}
+				def userName = arr[2]
+				def sb = new SwingBuilder()
+				def pane = sb.optionPane(message: 'Welcome to the wonderful world of GroovySwing',
+					options: ['Accept', 'Decline'])
+				def dialog = pane.createDialog(null, 'You got an invite!')
+				dialog.visible = true
+				println "Dialog result: " + pane.value
+				if (pane.value.equals("Accept")) {
+					client.send "INVY $inviteID"
+				} else {
+					client.send "INVN $inviteID"
+				}
+			}
+			if (mess.startsWith("STUS")) {
+				boolean online = arr[2].equals("online")
+				def username = arr[1]
+				println "$username is $online"
+				def model = userList.model
+				if (online) {
+					model.addElement arr[1]
+				} else {
+					model.removeElement arr[1]
+				}
+			}
+			if (mess.startsWith("NEWG")) {
+				address.gameid = Integer.parseInt arr[1]
+				address.playerIndex = Integer.parseInt arr[2]
+			}
+			if (mess.startsWith("CONF")) {
+				// CONF 0 10 10 Air_Carrier 5 1 Battleship 4 1 Submarine 3 1 Submarine 3 1 Patrol 2 1
+				def shipArr = Arrays.copyOf(arr, 4, arr.length);
+				
 			}
 		}
 	
@@ -43,8 +94,14 @@ swingBuilder.edt {
 					td {
 						textField address.name, id: 'name', columns: 20
 					}
+					td {
+					}
 				}
 				tr {
+					td {
+						button text: 'Test', actionPerformed: {
+						}
+					}
 					td {
 						button text: 'Save', actionPerformed: {
 							if (address.name.contains(" ")) {
@@ -85,9 +142,9 @@ swingBuilder.edt {
 			panel(constraints: BorderLayout.EAST) {
 				boxLayout(axis: BoxLayout.Y_AXIS)
 				
-				list id: 'userList', listData: ["Test", "Hello", "ABC"]
+				list id: 'userList', model: new DefaultListModel<String>()
 				button 'Invite', actionPerformed: {
-					client.send "INVT Battleship " + userList.selectedItem
+					client.send "INVT Battleship " + userList.selectedValue
 				}
 			}
 		}
