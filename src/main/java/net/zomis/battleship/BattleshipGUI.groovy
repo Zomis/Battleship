@@ -21,9 +21,16 @@ def swingBuilder = new SwingBuilder()
 swingBuilder.edt {
 	// edt method makes sure UI is build on Event Dispatch Thread.
 	lookAndFeel 'nimbus'  // Simple change in look and feel.
-	frame(title: 'Address', size: [350, 230],
+	frame(title: 'Address', size: [600, 480],
 	show: true, locationRelativeTo: null,
 	defaultCloseOperation: EXIT_ON_CLOSE) {
+		def listener = {String mess ->
+			println address.name + " Incoming: " + mess
+			if (mess.startsWith("CHAT")) {
+				chat.append(mess + "\n")
+			}
+		}
+	
 		borderLayout(vgap: 5)
 		
 		panel(constraints: BorderLayout.NORTH, id: 'namePanel',
@@ -43,7 +50,7 @@ swingBuilder.edt {
 							namePanel.visible = false
 							lobbyPanel.visible = true
 							address.client = new Client(name: address.name);
-							new Thread({ address.client.listen() }).start();
+							new Thread({ address.client.listen(listener) }).start();
 							
 /*							panelGrid.layout.rows = 10
 							(1..100).each{
