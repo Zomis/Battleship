@@ -3,7 +3,10 @@ package net.zomis.battleship
 import groovy.swing.SwingBuilder
 import groovy.beans.Bindable
 import static javax.swing.JFrame.EXIT_ON_CLOSE
+
 import java.awt.*
+
+import javax.swing.BoxLayout;
 import javax.swing.JButton
 
 @Bindable
@@ -12,7 +15,6 @@ class Address {
 	String toString() {
 		"address[name=$name]"
 	}
-	Client client
 }
 
 def address = new Address(name: '')
@@ -21,9 +23,10 @@ def swingBuilder = new SwingBuilder()
 swingBuilder.edt {
 	// edt method makes sure UI is build on Event Dispatch Thread.
 	lookAndFeel 'nimbus'  // Simple change in look and feel.
-	frame(title: 'Address', size: [600, 480],
+	frame(title: 'Battleship', size: [800, 480],
 	show: true, locationRelativeTo: null,
 	defaultCloseOperation: EXIT_ON_CLOSE) {
+		Client client
 		def listener = {String mess ->
 			println address.name + " Incoming: " + mess
 			if (mess.startsWith("CHAT")) {
@@ -49,8 +52,8 @@ swingBuilder.edt {
 							}
 							namePanel.visible = false
 							lobbyPanel.visible = true
-							address.client = new Client(name: address.name);
-							new Thread({ address.client.listen(listener) }).start();
+							client = new Client(name: address.name);
+							new Thread({ client.listen(listener) }).start();
 							
 /*							panelGrid.layout.rows = 10
 							(1..100).each{
@@ -76,9 +79,17 @@ swingBuilder.edt {
 					if (address.chatSend.trim().equals("")) {
 						return;
 					}
-					address.client.send "CHAT 0 " + address.chatSend
+					client.send "CHAT 0 " + address.chatSend
 				}
-			} 
+			}
+			panel(constraints: BorderLayout.EAST) {
+				boxLayout(axis: BoxLayout.Y_AXIS)
+				
+				list id: 'userList', listData: ["Test", "Hello", "ABC"]
+				button 'Invite', actionPerformed: {
+					client.send "INVT Battleship " + userList.selectedItem
+				}
+			}
 		}
 		// Binding of textfield's to address object.
 		bean address,
