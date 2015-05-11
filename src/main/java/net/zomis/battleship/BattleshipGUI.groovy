@@ -310,16 +310,24 @@ swingBuilder.edt {
 		}
 		panel(constraints: BorderLayout.CENTER, id: 'gamePanel', visible: false) {
 			hbox {
+				panel {
+					borderLayout()
+					label 'Your Board', constraints: BorderLayout.NORTH
+					panel(id: 'panelGrid', constraints: BorderLayout.CENTER) {
+						gridLayout() { }
+					}
+				}
 				
-				panel(id: 'panelGrid') {
-					gridLayout() { }
-				}
 				panel()
-				panel(id: 'opponentGrid') {
-					gridLayout { }
+				
+				panel {
+					borderLayout()
+					label 'Opponent Board', constraints: BorderLayout.NORTH
+					panel(id: 'opponentGrid', constraints: BorderLayout.CENTER) {
+						gridLayout() { }
+					}
 				}
-			} 
-			
+			}
 		}
 		panel(constraints: BorderLayout.SOUTH, id: 'lobbyPanel', visible: false) {
 			borderLayout()
