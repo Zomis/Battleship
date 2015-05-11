@@ -146,14 +146,32 @@ swingBuilder.edt {
 		Ship currentShip
 		boolean flip = false
 		JButton[][] buttons
+		JButton[][] opponentButtons
 		List<Ship> shipsToPlace = []
 		int placedShips = 0
 			
 		def showGame = {int width, int height ->
-			panelGrid.layout.rows = width
+			panelGrid.layout.rows = height
+			opponentGrid.layout.rows = height
+			
 			buttons = new JButton[height][width]
+			opponentButtons = new JButton[height][width]
 			(0..width*height - 1).each {
-				JButton button = new JButton("");
+				JButton button = new JButton(".");
+				int x = it % width
+				int y = it / width
+				opponentButtons[y][x] = button
+				button.addActionListener({
+					if (gameData.isMyTurn()) {
+						// make a guess
+						def gameid = gameData.gameid
+						client.send("MOVE $gameid PLAY $x $y")
+					}
+				});
+				opponentGrid.add(button)
+			}
+			(0..width*height - 1).each {
+				JButton button = new JButton("_");
 				int x = it % width
 				int y = it / width
 				buttons[y][x] = button
@@ -161,20 +179,13 @@ swingBuilder.edt {
 					if (currentShip) {
 						// position ship
 						currentShip.position(buttons, x, y)
-					} else {
-						if (gameData.isMyTurn()) {
-							// make a guess
-							def gameid = gameData.gameid
-							client.send("MOVE $gameid PLAY $x $y")
-						}
 					}
 				});
 				panelGrid.add(button)
 			}
-			panelGrid.revalidate()
 			lobbyPanel.visible = false
-			panelGrid.visible = true
 			gamePanel.visible = true
+			gamePanel.revalidate()
 			gameData.gameWidth = width
 			gameData.gameHeight = height
 		}
@@ -232,20 +243,19 @@ swingBuilder.edt {
 				placedShips = 0
 				currentShip = shipsToPlace[0]
 				showGame(width, height)
+				placeShipButton.visible = true
 			}
 			if (mess.startsWith("MOVE")) {
 				if (arr[2].equals("PLAY")) {
 					int player = Integer.parseInt arr[5]
-					if (player == gameData.playerIndex) {
-						int x = Integer.parseInt arr[3]
-						int y = Integer.parseInt arr[4]
-						JButton button = buttons[y][x];
-						boolean hit = arr[6].equals("HIT")
-						button.text = hit ? "X" : "."
-						button.enabled = false
-					} else {
-						// TODO: Show my grid
-					}
+					JButton[][] buttonGrid = player == gameData.playerIndex ? opponentButtons : buttons;
+					
+					int x = Integer.parseInt arr[3]
+					int y = Integer.parseInt arr[4]
+					JButton button = buttonGrid[y][x];
+					boolean hit = arr[6].equals("HIT")
+					button.text = hit ? "X" : "."
+					button.enabled = false
 				}
 				if (arr[2].equals("TURN")) {
 					int player = Integer.parseInt arr[3]
@@ -260,25 +270,18 @@ swingBuilder.edt {
 		border: compoundBorder([emptyBorder(10), titledBorder('Enter your name:')])) {
 			vbox {
 				textField gameData.name, id: 'name', columns: 20
-				button text: 'Save', actionPerformed: {
+				button id: 'connectButton', text: 'Save', actionPerformed: {
 					if (gameData.name.contains(" ")) {
 						return;
 					}
-					namePanel.visible = false
 					lobbyPanel.visible = true
 					client = new Client(name: gameData.name);
 					new Thread({ client.listen(listener) }).start();
+					name.enabled = false
+					connectButton.visible = false
 					
 				}
-			}
-		}
-		panel(constraints: BorderLayout.CENTER, id: 'gamePanel', visible: false) {
-			borderLayout()
-			panel(constraints: BorderLayout.CENTER, id: 'panelGrid') {
-				gridLayout { }
-			}
-			panel(constraints: BorderLayout.SOUTH) {
-				button text: 'Apply', actionPerformed: {
+				button id: 'placeShipButton', visible: false, text: 'Apply', actionPerformed: {
 					if (!shipsToPlace.empty) {
 						// place a ship
 						if (currentShip.isValid()) {
@@ -293,6 +296,7 @@ swingBuilder.edt {
 								}
 								client.send(str.toString().trim())
 								shipsToPlace.clear()
+								placeShipButton.visible = false
 							}
 						} else {
 							def sb = new SwingBuilder()
@@ -303,6 +307,19 @@ swingBuilder.edt {
 					}
 				}
 			}
+		}
+		panel(constraints: BorderLayout.CENTER, id: 'gamePanel', visible: false) {
+			hbox {
+				
+				panel(id: 'panelGrid') {
+					gridLayout() { }
+				}
+				panel()
+				panel(id: 'opponentGrid') {
+					gridLayout { }
+				}
+			} 
+			
 		}
 		panel(constraints: BorderLayout.SOUTH, id: 'lobbyPanel', visible: false) {
 			borderLayout()
