@@ -77,7 +77,12 @@ class Ship {
 		if (this.canPlaceAtBoard(x, y)) {
 			placeAtBoard(buttons, x, y)
 		} else {
-			println "$this: Cannot place at $x, $y"
+			this.flip()
+			if (this.canPlaceAtBoard(x, y)) {
+				placeAtBoard(buttons, x, y)
+			} else {
+				println "$this: Cannot place at $x, $y"
+			}
 		}
 	}
 	
