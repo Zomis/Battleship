@@ -153,7 +153,7 @@ swingBuilder.edt {
 			panelGrid.layout.rows = width
 			buttons = new JButton[height][width]
 			(0..width*height - 1).each {
-				JButton button = new JButton(it.toString());
+				JButton button = new JButton("");
 				int x = it % width
 				int y = it / width
 				buttons[y][x] = button
@@ -234,6 +234,19 @@ swingBuilder.edt {
 				showGame(width, height)
 			}
 			if (mess.startsWith("MOVE")) {
+				if (arr[2].equals("PLAY")) {
+					int player = Integer.parseInt arr[5]
+					if (player == gameData.playerIndex) {
+						int x = Integer.parseInt arr[3]
+						int y = Integer.parseInt arr[4]
+						JButton button = buttons[y][x];
+						boolean hit = arr[6].equals("HIT")
+						button.text = hit ? "X" : "."
+						button.enabled = false
+					} else {
+						// TODO: Show my grid
+					}
+				}
 				if (arr[2].equals("TURN")) {
 					int player = Integer.parseInt arr[3]
 					gameData.currentPlayer = player
