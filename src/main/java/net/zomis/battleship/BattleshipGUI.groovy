@@ -258,31 +258,17 @@ swingBuilder.edt {
 		
 		panel(constraints: BorderLayout.NORTH, id: 'namePanel',
 		border: compoundBorder([emptyBorder(10), titledBorder('Enter your name:')])) {
-			tableLayout {
-				tr {
-					td {
-						textField gameData.name, id: 'name', columns: 20
+			vbox {
+				textField gameData.name, id: 'name', columns: 20
+				button text: 'Save', actionPerformed: {
+					if (gameData.name.contains(" ")) {
+						return;
 					}
-					td {
-					}
-				}
-				tr {
-					td {
-						button text: 'Test', actionPerformed: {
-						}
-					}
-					td {
-						button text: 'Save', actionPerformed: {
-							if (gameData.name.contains(" ")) {
-								return;
-							}
-							namePanel.visible = false
-							lobbyPanel.visible = true
-							client = new Client(name: gameData.name);
-							new Thread({ client.listen(listener) }).start();
-							
-						}
-					}
+					namePanel.visible = false
+					lobbyPanel.visible = true
+					client = new Client(name: gameData.name);
+					new Thread({ client.listen(listener) }).start();
+					
 				}
 			}
 		}
