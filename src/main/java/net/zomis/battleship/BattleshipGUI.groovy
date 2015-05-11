@@ -122,9 +122,13 @@ class GameBoard {
 class GameData {
 	String name, chatSend
 	int gameid
-	int playerIndex
+	int playerIndex, currentPlayer
 	int gameWidth, gameHeight
 	GameBoard myBoard
+	
+	boolean isMyTurn() {
+		return playerIndex == currentPlayer
+	}
 }
 
 GameData gameData = new GameData(name: '')
@@ -158,9 +162,11 @@ swingBuilder.edt {
 						// position ship
 						currentShip.position(buttons, x, y)
 					} else {
-						// make a guess
-						def gameid = gameData.gameid
-						client.send("MOVE $gameid PLAY $x $y")
+						if (gameData.isMyTurn()) {
+							// make a guess
+							def gameid = gameData.gameid
+							client.send("MOVE $gameid PLAY $x $y")
+						}
 					}
 				});
 				panelGrid.add(button)
@@ -226,6 +232,12 @@ swingBuilder.edt {
 				placedShips = 0
 				currentShip = shipsToPlace[0]
 				showGame(width, height)
+			}
+			if (mess.startsWith("MOVE")) {
+				if (arr[2].equals("TURN")) {
+					int player = Integer.parseInt arr[3]
+					gameData.currentPlayer = player
+				}
 			}
 		}
 	
