@@ -11,6 +11,7 @@ import javax.swing.ActionPropertyChangeListener;
 import javax.swing.BoxLayout;
 import javax.swing.DefaultListModel
 import javax.swing.JButton
+import javax.swing.JOptionPane;
 
 class Ship {
 	GameBoard board
@@ -33,7 +34,7 @@ class Ship {
 			for (int xx = x; xx < x + width; xx++) {
 				if (board.inRange(xx, yy) && board.ships[yy][xx] == this) {
 					board.ships[yy][xx] = null
-					buttons[yy][xx].text = ""
+					buttons[yy][xx].text = "_"
 				}
 			}
 		}
@@ -261,6 +262,26 @@ swingBuilder.edt {
 					int player = Integer.parseInt arr[3]
 					gameData.currentPlayer = player
 				}
+				if (arr[2].equals("SINK")) {
+					int player = Integer.parseInt arr[3]
+					if (player == gameData.playerIndex) {
+						String name = arr[4]
+						int width = Integer.parseInt arr[5]
+						int height = Integer.parseInt arr[6]
+						
+						int x = Integer.parseInt arr[7]
+						int y = Integer.parseInt arr[8]
+						(x..x+width-1).each({xx ->
+							(y..y+height-1).each({yy ->
+								opponentButtons[yy][xx].text = name.charAt(0)
+							})
+						})
+					}
+					gameData.currentPlayer = player
+				}
+			}
+			if (mess.startsWith("GEND")) {
+				JOptionPane.showMessageDialog(null, mess, "Game Over!", JOptionPane.INFORMATION_MESSAGE);
 			}
 		}
 	
