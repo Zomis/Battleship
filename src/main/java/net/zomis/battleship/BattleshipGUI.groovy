@@ -4,6 +4,7 @@ import groovy.swing.SwingBuilder
 import groovy.beans.Bindable
 import static javax.swing.JFrame.EXIT_ON_CLOSE
 
+import java.util.List
 import java.awt.*
 
 import javax.swing.ActionPropertyChangeListener;
@@ -12,22 +13,118 @@ import javax.swing.DefaultListModel
 import javax.swing.JButton
 
 class Ship {
+	GameBoard board
 	String name
 	int width
 	int height
-}
-
-@Bindable
-class Address {
-	String name, chatSend
-	int gameid
-	int playerIndex
-	String toString() {
-		"address[name=$name]"
+	int x = -1
+	int y = -1
+	
+	private void flip() {
+		println "$this: Flip"
+		int temp = this.width
+		this.width = this.height
+		this.height = temp
+	}
+	
+	private void removeFromBoard(JButton[][] buttons) {
+		println "$this: Remove from board"
+		for (int yy = y; yy < y + height; yy++) {
+			for (int xx = x; xx < x + width; xx++) {
+				if (board.inRange(xx, yy) && board.ships[yy][xx] == this) {
+					board.ships[yy][xx] = null
+					buttons[yy][xx].text = ""
+				}
+			}
+		}
+	}
+	
+	private void placeAtBoard(JButton[][] buttons, int x, int y) {
+		println "$this: Place at board $x, $y"
+		this.x = x
+		this.y = y
+		for (int yy = y; yy < y + height; yy++) {
+			for (int xx = x; xx < x + width; xx++) {
+				board.ships[yy][xx] = this
+				buttons[yy][xx].text = name.charAt(0)
+			}
+		}
+	}
+	
+	private boolean canPlaceAtBoard(int x, int y) {
+		for (int yy = y; yy < y + height; yy++) {
+			for (int xx = x; xx < x + width; xx++) {
+				if (!board.inRange(xx, yy)) {
+					println "Board: $xx $yy is not in range"
+					return false
+				}
+				if (board.ships[yy][xx]) {
+					println "Board: $xx $yy contains a ship: ${board.ships[yy][xx]}"
+					return false
+				}
+			}
+		}
+		return true
+	}
+	
+	void position(JButton[][] buttons, int x, int y) {
+		boolean flipIt = board.ships[y][x] == this && this.x == x && this.y == y
+		this.removeFromBoard(buttons)
+		if (flipIt) {
+			this.flip()
+		}
+		
+		if (this.canPlaceAtBoard(x, y)) {
+			placeAtBoard(buttons, x, y)
+		} else {
+			println "$this: Cannot place at $x, $y"
+		}
+	}
+	
+	boolean isValid() {
+		return board.inRange(x, y) && board.inRange(x + width - 1, y + height - 1)
+	}
+	
+	String confString() {
+		return "$name $width $height $x $y "
+	}
+	
+	@Override
+	public String toString() {
+		return confString();
 	}
 }
 
-def address = new Address(name: '')
+class GameBoard {
+	Ship[][] ships
+	List<Ship> placedShips = []
+	int width
+	int height
+	
+	public GameBoard(int width, int height) {
+		this.ships = new Ship[height][width]
+		this.width = width
+		this.height = height
+	}
+	
+	public boolean inRange(int x, int y) {
+		return x >= 0 && y >= 0 && x < width && y < height
+	}
+	
+}
+
+@Bindable
+class GameData {
+	String name, chatSend
+	int gameid
+	int playerIndex
+	int gameWidth, gameHeight
+	GameBoard myBoard
+}
+
+GameData gameData = new GameData(name: '')
+
+
 def swingBuilder = new SwingBuilder()
 
 swingBuilder.edt {
@@ -37,19 +134,42 @@ swingBuilder.edt {
 	show: true, locationRelativeTo: null,
 	defaultCloseOperation: EXIT_ON_CLOSE) {
 		Client client
-		def shipsToPlace = []
+		Ship currentShip
+		boolean flip = false
+		JButton[][] buttons
+		List<Ship> shipsToPlace = []
+		int placedShips = 0
+			
 		def showGame = {int width, int height ->
 			panelGrid.layout.rows = width
-			(1..width*height).each {
-				panelGrid.add(new JButton("" + it))
+			buttons = new JButton[height][width]
+			(0..width*height - 1).each {
+				JButton button = new JButton(it.toString());
+				int x = it % width
+				int y = it / width
+				buttons[y][x] = button
+				button.addActionListener({
+					if (currentShip) {
+						// position ship
+						currentShip.position(buttons, x, y)
+					} else {
+						// make a guess
+						def gameid = gameData.gameid
+						client.send("MOVE $gameid PLAY $x $y")
+					}
+				});
+				panelGrid.add(button)
 			}
 			panelGrid.revalidate()
 			lobbyPanel.visible = false
 			panelGrid.visible = true
+			gamePanel.visible = true
+			gameData.gameWidth = width
+			gameData.gameHeight = height
 		}
 		
 		def listener = {String mess ->
-			println address.name + " Incoming: " + mess
+			println gameData.name + " Incoming: " + mess
 			def arr = mess.split " "
 			if (mess.startsWith("CHAT")) {
 				chat.append(mess + "\n")
@@ -61,9 +181,9 @@ swingBuilder.edt {
 					client.send "INVN $inviteID"
 					return;
 				}
-				def userName = arr[2]
+				def userName = arr[3]
 				def sb = new SwingBuilder()
-				def pane = sb.optionPane(message: 'Welcome to the wonderful world of GroovySwing',
+				def pane = sb.optionPane(message: "$userName wants to play with you",
 					options: ['Accept', 'Decline'])
 				def dialog = pane.createDialog(null, 'You got an invite!')
 				dialog.visible = true
@@ -86,15 +206,21 @@ swingBuilder.edt {
 				}
 			}
 			if (mess.startsWith("NEWG")) {
-				address.gameid = Integer.parseInt arr[1]
-				address.playerIndex = Integer.parseInt arr[2]
+				gameData.gameid = Integer.parseInt arr[1]
+				gameData.playerIndex = Integer.parseInt arr[2]
 			}
 			if (mess.startsWith("CONF")) {
-				// CONF 0 10 10 Air_Carrier 5 1 Battleship 4 1 Submarine 3 1 Submarine 3 1 Patrol 2 1
+				// example: CONF 0 10 10 Air_Carrier 5 1 Battleship 4 1 Submarine 3 1 Submarine 3 1 Patrol 2 1
+				int width = Integer.parseInt arr[2]
+				int height = Integer.parseInt arr[3]
+				gameData.myBoard = new GameBoard(width, height)
 				for (int i = 4; i < arr.length; i += 3) {
-					shipsToPlace.add new Ship(name: arr[i], width: arr[i + 1], height: arr[i + 2])
+					shipsToPlace.add new Ship(board: gameData.myBoard, name: arr[i], 
+						width: Integer.parseInt(arr[i + 1]), height: Integer.parseInt(arr[i + 2]))
 				}
-				showGame(10, 10)
+				placedShips = 0
+				currentShip = shipsToPlace[0]
+				showGame(width, height)
 			}
 		}
 	
@@ -105,7 +231,7 @@ swingBuilder.edt {
 			tableLayout {
 				tr {
 					td {
-						textField address.name, id: 'name', columns: 20
+						textField gameData.name, id: 'name', columns: 20
 					}
 					td {
 					}
@@ -117,12 +243,12 @@ swingBuilder.edt {
 					}
 					td {
 						button text: 'Save', actionPerformed: {
-							if (address.name.contains(" ")) {
+							if (gameData.name.contains(" ")) {
 								return;
 							}
 							namePanel.visible = false
 							lobbyPanel.visible = true
-							client = new Client(name: address.name);
+							client = new Client(name: gameData.name);
 							new Thread({ client.listen(listener) }).start();
 							
 						}
@@ -130,8 +256,37 @@ swingBuilder.edt {
 				}
 			}
 		}
-		panel(constraints: BorderLayout.CENTER, id: 'panelGrid', visible: false) {
-			gridLayout { }
+		panel(constraints: BorderLayout.CENTER, id: 'gamePanel', visible: false) {
+			borderLayout()
+			panel(constraints: BorderLayout.CENTER, id: 'panelGrid') {
+				gridLayout { }
+			}
+			panel(constraints: BorderLayout.SOUTH) {
+				button text: 'Apply', actionPerformed: {
+					if (!shipsToPlace.empty) {
+						// place a ship
+						if (currentShip.isValid()) {
+							placedShips++
+							if (placedShips < shipsToPlace.size()) {
+								currentShip = shipsToPlace[placedShips]
+							} else {
+								currentShip = null
+								str = new StringBuilder("MOVE ${gameData.gameid} SHIP ")
+								for (Ship ship in shipsToPlace) {
+									str.append(ship.confString())
+								}
+								client.send(str.toString().trim())
+								shipsToPlace.clear()
+							}
+						} else {
+							def sb = new SwingBuilder()
+							def pane = sb.optionPane(message: 'Invalid Ship Placement: ' + currentShip, options: ['OK'])
+							def dialog = pane.createDialog(null, 'Error!')
+							dialog.visible = true
+						}
+					}
+				}
+			}
 		}
 		panel(constraints: BorderLayout.SOUTH, id: 'lobbyPanel', visible: false) {
 			borderLayout()
@@ -139,12 +294,12 @@ swingBuilder.edt {
 				textArea id: 'chat', rows: 20, columns: 50
 			}
 			panel(constraints: BorderLayout.SOUTH) {
-				textField address.chatSend, id: 'chatSend', columns: 20
+				textField gameData.chatSend, id: 'chatSend', columns: 20
 				button text: 'Send', actionPerformed: {
-					if (address.chatSend.trim().equals("")) {
+					if (gameData.chatSend.trim().equals("")) {
 						return;
 					}
-					client.send "CHAT 0 " + address.chatSend
+					client.send "CHAT 0 " + gameData.chatSend
 				}
 			}
 			panel(constraints: BorderLayout.EAST) {
@@ -157,7 +312,7 @@ swingBuilder.edt {
 			}
 		}
 		// Binding of textfield's to address object.
-		bean address,
+		bean gameData,
 			name: bind { name.text },
 			chatSend: bind { chatSend.text }
 	}
