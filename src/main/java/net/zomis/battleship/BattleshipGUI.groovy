@@ -123,7 +123,8 @@ class GameBoard {
 class GameData {
 	String name, chatSend
 	int gameid
-	int playerIndex, currentPlayer
+	int playerIndex
+	int currentPlayer = -1
 	int gameWidth, gameHeight
 	GameBoard myBoard
 	
