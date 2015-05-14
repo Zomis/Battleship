@@ -6,7 +6,7 @@ import java.io.PrintWriter;
 
 public class Client {
 	
-	def socket = new Socket("localhost", 7282);
+	def socket = new Socket("stats.zomis.net", 7282);
 	def writer = new PrintWriter(socket.outputStream);
 	def name
 	
